@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "outDir": ".",
+        "outDir": "dist",
         "target": "es2015",
         "module": "commonjs",
         "strict": true,
@@ -16,6 +16,4 @@
     "include": [
         "./src/**/*"
     ],
-    "exclude": [
-    ]
 }
