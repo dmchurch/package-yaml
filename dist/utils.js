@@ -46,6 +46,9 @@ function loadAndParse(path, parser, inhibitErrors = false) {
 }
 exports.loadAndParse = loadAndParse;
 function patchObject(jsonContents, packageDiff) {
+    if (!packageDiff) {
+        return jsonContents;
+    }
     for (let diffEntry of packageDiff) {
         deep_diff_1.applyChange(jsonContents, null, diffEntry);
     }

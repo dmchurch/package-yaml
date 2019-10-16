@@ -45,11 +45,16 @@ export function loadAndParse<T>(path:string, parser:(data:string)=>T, inhibitErr
     }
 }
 
-export function patchObject(jsonContents: any, packageDiff: Diff<any,any>[]): any {
+export function patchObject<T,U>(jsonContents: T, packageDiff: undefined): T
+export function patchObject<T,U>(jsonContents: T, packageDiff: Diff<T,U>[]): U
+export function patchObject<T,U>(jsonContents: T, packageDiff: Diff<T,U>[]|undefined): U|T {
+    if (!packageDiff) {
+        return jsonContents;
+    }
     for (let diffEntry of packageDiff) {
         applyChange(jsonContents,null,diffEntry);
     }
-    return jsonContents;
+    return jsonContents as unknown as U;
 }
 
 export function patchYamlDocument(yamlDoc: yaml.ast.Document, packageDiff: Diff<any,any>[]):yaml.ast.Document {

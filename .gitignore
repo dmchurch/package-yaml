@@ -2,3 +2,5 @@ node_modules
 npm-debug.log
 .package.*~
 index.d.ts
+coverage
+dist/*.spec.*
