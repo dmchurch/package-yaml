@@ -18,6 +18,7 @@ export declare class Config {
     readonly timestampFuzz: number;
     readonly conflicts: ConflictResolution;
     readonly tryMerge: boolean;
+    readonly preserveOrder: boolean;
     readonly defaultExtension: "yaml" | "yml";
     _lockedProps: {
         -readonly [k in keyof Config]?: boolean;

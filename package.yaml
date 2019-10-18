@@ -25,7 +25,8 @@ bugs:
 homepage: https://github.com/dmchurch/package-yaml#readme
 
 dependencies:
-  deep-diff: ^1.0.2
+  # deep-diff: github:flitbit/diff#e2b5b86 # needs this for symbol diffing
+  deep-diff: https://github.com/flitbit/diff/archive/e2b5b86.tar.gz
   yaml: ^1.7.0
   reflect-metadata: ^0.1.13
   npmlog: ^4.1.2
@@ -44,3 +45,5 @@ devDependencies:
   coveralls: ^3.0.7
   jest: ^24.9.0
   ts-jest: ^24.1.0
+  mock-fs: ^4.10.1
+  "@types/mock-fs": ^3.6.30

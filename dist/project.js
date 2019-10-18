@@ -10,6 +10,7 @@ const deep_diff_1 = require("deep-diff");
 const yaml_1 = __importDefault(require("yaml"));
 const config_1 = require("./config");
 const utils_1 = require("./utils");
+const KEY_ORDER_KEY = Symbol('packageYaml-key-order');
 class Project {
     constructor(projectDir) {
         this.config = new config_1.Config();
@@ -47,7 +48,7 @@ class Project {
             return this._jsonContents;
         if (this.jsonExists) {
             try {
-                return this._jsonContents = utils_1.loadAndParse(this.jsonPath, JSON.parse);
+                return this._jsonContents = this.maybeSaveOrder(utils_1.loadAndParse(this.jsonPath, JSON.parse));
             }
             catch (e) {
                 log_1.default.error("loadJson", "Cannot load or parse %s: %s", this.jsonPath, e);
@@ -59,10 +60,11 @@ class Project {
         }
     }
     set jsonContents(value) {
-        if (deep_diff_1.diff(this._jsonContents, value)) {
+        value = utils_1.deepCopy(value);
+        if (this.maybeOrderedDiff(this._jsonContents, value)) {
             this.jsonModified = true;
         }
-        this._jsonContents = value;
+        this._jsonContents = this.maybeSaveOrder(value);
     }
     get yamlDocument() {
         if (this._yamlDocument)
@@ -87,7 +89,7 @@ class Project {
         this._yamlDocument = value;
     }
     get yamlContents() {
-        return this.yamlDocument.toJSON();
+        return this.maybeSaveOrder(this.yamlDocument.toJSON());
     }
     backupPath(filename) {
         const fullPath = this.projectPath(filename).replace(/\//g, '%');
@@ -95,6 +97,19 @@ class Project {
             .replace("%s", filename)
             .replace("%S", fullPath);
         return path_1.default.resolve(this.projectDir, backupPath);
+    }
+    maybeSaveOrder(obj) {
+        return this.config.preserveOrder ? utils_1.recordKeyOrder(obj, true, KEY_ORDER_KEY) : obj;
+    }
+    maybeRestoreOrder(obj) {
+        return this.config.preserveOrder ? utils_1.recordKeyOrder(utils_1.restoreKeyOrder(obj, true, KEY_ORDER_KEY), true, KEY_ORDER_KEY) : obj;
+    }
+    maybeOrderedDiff(a, b) {
+        if (this.config.preserveOrder) {
+            a = utils_1.recordKeyOrder(utils_1.deepCopy(a));
+            b = utils_1.recordKeyOrder(utils_1.deepCopy(b));
+        }
+        return deep_diff_1.diff(a, b, { prefilter: (_, key) => (key === KEY_ORDER_KEY) });
     }
     writeBackups() {
         let success = true;
@@ -142,21 +157,21 @@ class Project {
     }
     patchYaml(diff) {
         if (diff) {
-            this.yamlDocument = utils_1.patchYamlDocument(this.yamlDocument, diff);
+            this.yamlDocument = utils_1.patchYamlDocument(this.yamlDocument, diff, KEY_ORDER_KEY);
             this.yamlModified = true;
         }
         return this.yamlDocument;
     }
     patchJson(diff) {
         if (diff) {
-            this.jsonContents = utils_1.patchObject(this.jsonContents, diff);
+            this.jsonContents = this.maybeRestoreOrder(utils_1.patchObject(this.jsonContents, diff));
             this.jsonModified = true;
         }
         return this.jsonContents;
     }
     sync(conflictStrategy) {
         conflictStrategy = conflictStrategy || this.config.conflicts;
-        if (!deep_diff_1.diff(this.jsonContents, this.yamlContents)) {
+        if (!this.maybeOrderedDiff(this.jsonContents, this.yamlContents)) {
             log_1.default.verbose("sync", "Package files already in sync, writing backups");
             this.writeBackups();
             return true;
@@ -174,21 +189,21 @@ class Project {
             log_1.default.verbose("sync", "Attempting to read backups...");
             const jsonBackup = utils_1.loadAndParse(this.backupPath(this.jsonName), JSON.parse, true) || this.jsonContents;
             const yamlBackup = utils_1.loadAndParse(this.backupPath(this.yamlName), yaml_1.default.parse, true) || this.yamlContents;
-            if (!deep_diff_1.diff(this.jsonContents, yamlBackup)) {
+            if (!this.maybeOrderedDiff(this.jsonContents, yamlBackup)) {
                 log_1.default.verbose("sync", "package.yaml has changed, applying to package.json");
                 conflictStrategy = config_1.ConflictResolution.useYaml;
             }
-            else if (!deep_diff_1.diff(this.yamlContents, jsonBackup)) {
+            else if (!this.maybeOrderedDiff(this.yamlContents, jsonBackup)) {
                 log_1.default.verbose("sync", "package.json has changed, applying to package.yaml");
                 conflictStrategy = config_1.ConflictResolution.useJson;
             }
-            else if (!deep_diff_1.diff(jsonBackup, yamlBackup) && this.config.tryMerge) {
+            else if (!this.maybeOrderedDiff(jsonBackup, yamlBackup) && this.config.tryMerge) {
                 log_1.default.verbose("sync", "Both json and yaml have changed, attempting merge");
-                const jsonDiff = deep_diff_1.diff(jsonBackup, this.jsonContents);
-                const yamlDiff = deep_diff_1.diff(yamlBackup, this.yamlContents);
-                const patchedJson = yamlDiff ? utils_1.patchObject(JSON.parse(JSON.stringify(this.jsonContents)), yamlDiff) : this.jsonContents;
-                const patchedYaml = jsonDiff ? utils_1.patchObject(this.yamlContents, jsonDiff) : this.yamlContents;
-                if (!deep_diff_1.diff(patchedJson, patchedYaml)) {
+                const jsonDiff = this.maybeOrderedDiff(jsonBackup, this.jsonContents);
+                const yamlDiff = this.maybeOrderedDiff(yamlBackup, this.yamlContents);
+                const patchedJson = yamlDiff ? this.maybeRestoreOrder(utils_1.patchObject(this.jsonContents, yamlDiff)) : this.jsonContents;
+                const patchedYaml = jsonDiff ? this.maybeRestoreOrder(utils_1.patchObject(this.yamlContents, jsonDiff)) : this.yamlContents;
+                if (!this.maybeOrderedDiff(patchedJson, patchedYaml)) {
                     log_1.default.verbose("sync", "Merge successful, continuing");
                     this.patchYaml(jsonDiff);
                     conflictStrategy = config_1.ConflictResolution.useYaml;
@@ -226,11 +241,11 @@ class Project {
         }
         if (conflictStrategy == config_1.ConflictResolution.useJson) {
             log_1.default.verbose("sync", "Patching %s with changes from package.json", this.yamlName);
-            this.patchYaml(deep_diff_1.diff(this.yamlContents, this.jsonContents));
+            this.patchYaml(this.maybeOrderedDiff(this.yamlContents, this.jsonContents));
         }
         else if (conflictStrategy == config_1.ConflictResolution.useYaml) {
             log_1.default.verbose("sync", "Patching package.json with changes from %s", this.yamlName);
-            this.patchJson(deep_diff_1.diff(this.jsonContents, this.yamlContents));
+            this.patchJson(this.maybeOrderedDiff(this.jsonContents, this.yamlContents));
         }
         this.writeBackups();
         return this.writePackageFiles();

@@ -56,10 +56,14 @@ class Config {
         this.timestampFuzz = 5;
         this.conflicts = ConflictResolution.ask;
         this.tryMerge = true; // Only functions when backups are being written
+        this.preserveOrder = true;
         this.defaultExtension = "yaml";
         this._lockedProps = {};
         if (!!process.env.DEBUG_PACKAGE_YAML) {
             this.updateAndLock({ debug: true });
+        }
+        else {
+            this.update({ debug: false });
         }
         if (process.env.PACKAGE_YAML_FORCE) {
             const confl = `use-${process.env.PACKAGE_YAML_FORCE}`;
@@ -212,6 +216,10 @@ __decorate([
     property,
     __metadata("design:type", Boolean)
 ], Config.prototype, "tryMerge", void 0);
+__decorate([
+    property,
+    __metadata("design:type", Boolean)
+], Config.prototype, "preserveOrder", void 0);
 __decorate([
     property,
     __metadata("design:type", String)

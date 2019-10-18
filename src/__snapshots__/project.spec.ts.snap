@@ -1,0 +1,6 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`new Project() copies package.json to a new package.yaml 1`] = `
+"pyaml: TESTING
+"
+`;

@@ -5,8 +5,9 @@ import { diff, Diff } from 'deep-diff';
 import yaml from 'yaml';
 
 import { Config, ConflictResolution } from './config';
-import { loadAndParse, patchYamlDocument, patchObject } from './utils';
+import { loadAndParse, patchYamlDocument, patchObject, recordKeyOrder, restoreKeyOrder, deepCopy } from './utils';
 
+const KEY_ORDER_KEY = Symbol('packageYaml-key-order');
 export default class Project {
     readonly projectDir: string;
     yamlExtension: string | null;
@@ -45,7 +46,7 @@ export default class Project {
         if (this._jsonContents) return this._jsonContents;
         if (this.jsonExists) {
             try {
-                return this._jsonContents = loadAndParse(this.jsonPath, JSON.parse);
+                return this._jsonContents = this.maybeSaveOrder(loadAndParse(this.jsonPath, JSON.parse));
             } catch (e) {
                 log.error("loadJson", "Cannot load or parse %s: %s", this.jsonPath, e);
                 throw e;
@@ -55,10 +56,11 @@ export default class Project {
         }
     }
     set jsonContents(value:object) {
-        if (diff(this._jsonContents, value)) {
+        value = deepCopy(value);
+        if (this.maybeOrderedDiff(this._jsonContents, value)) {
             this.jsonModified = true;
         }
-        this._jsonContents = value;
+        this._jsonContents = this.maybeSaveOrder(value);
     }
 
     get yamlDocument():yaml.ast.Document {
@@ -82,7 +84,7 @@ export default class Project {
     }
 
     get yamlContents():object {
-        return this.yamlDocument.toJSON();
+        return this.maybeSaveOrder(this.yamlDocument.toJSON());
     }
 
     backupPath(filename:string): string {
@@ -91,6 +93,23 @@ export default class Project {
             .replace("%s", filename)
             .replace("%S", fullPath);
         return path.resolve(this.projectDir, backupPath);
+    }
+
+
+    maybeSaveOrder(obj: any) {
+        return this.config.preserveOrder ? recordKeyOrder(obj, true, KEY_ORDER_KEY) : obj;
+    }
+
+    maybeRestoreOrder(obj: any) {
+        return this.config.preserveOrder ? recordKeyOrder(restoreKeyOrder(obj, true, KEY_ORDER_KEY), true, KEY_ORDER_KEY) : obj;
+    }
+
+    maybeOrderedDiff<T,U>(a:T, b:U) {
+        if (this.config.preserveOrder) {
+            a = recordKeyOrder(deepCopy(a));
+            b = recordKeyOrder(deepCopy(b));
+        }
+        return diff(a, b, {prefilter:(_,key)=>(key === KEY_ORDER_KEY)});
     }
 
     constructor(projectDir: string) {
@@ -150,7 +169,7 @@ export default class Project {
 
     patchYaml(diff: Diff<any,any>[] | null | undefined): yaml.ast.Document {
         if (diff) {
-            this.yamlDocument = patchYamlDocument(this.yamlDocument, diff);
+            this.yamlDocument = patchYamlDocument(this.yamlDocument, diff, KEY_ORDER_KEY);
             this.yamlModified = true;
         }
         return this.yamlDocument;
@@ -158,7 +177,7 @@ export default class Project {
 
     patchJson(diff: Diff<any,any>[] | null | undefined): any {
         if (diff) {
-            this.jsonContents = patchObject(this.jsonContents, diff);
+            this.jsonContents = this.maybeRestoreOrder(patchObject(this.jsonContents, diff));
             this.jsonModified = true;
         }
         return this.jsonContents;
@@ -166,7 +185,7 @@ export default class Project {
 
     sync(conflictStrategy?:ConflictResolution):boolean | ConflictResolution.ask {
         conflictStrategy = conflictStrategy || this.config.conflicts;
-        if (!diff(this.jsonContents, this.yamlContents)) {
+        if (!this.maybeOrderedDiff(this.jsonContents, this.yamlContents)) {
             log.verbose("sync", "Package files already in sync, writing backups");
             this.writeBackups();
             return true;
@@ -182,19 +201,19 @@ export default class Project {
             log.verbose("sync", "Attempting to read backups...");
             const jsonBackup = loadAndParse(this.backupPath(this.jsonName), JSON.parse, true) || this.jsonContents;
             const yamlBackup = loadAndParse(this.backupPath(this.yamlName), yaml.parse, true) || this.yamlContents;
-            if (!diff(this.jsonContents, yamlBackup)) {
+            if (!this.maybeOrderedDiff(this.jsonContents, yamlBackup)) {
                 log.verbose("sync", "package.yaml has changed, applying to package.json");
                 conflictStrategy = ConflictResolution.useYaml;
-            } else if (!diff(this.yamlContents, jsonBackup)) {
+            } else if (!this.maybeOrderedDiff(this.yamlContents, jsonBackup)) {
                 log.verbose("sync", "package.json has changed, applying to package.yaml");
                 conflictStrategy = ConflictResolution.useJson;
-            } else if (!diff(jsonBackup, yamlBackup) && this.config.tryMerge) {
+            } else if (!this.maybeOrderedDiff(jsonBackup, yamlBackup) && this.config.tryMerge) {
                 log.verbose("sync", "Both json and yaml have changed, attempting merge");
-                const jsonDiff = diff(jsonBackup, this.jsonContents);
-                const yamlDiff = diff(yamlBackup, this.yamlContents);
-                const patchedJson = yamlDiff ? patchObject(JSON.parse(JSON.stringify(this.jsonContents)), yamlDiff) : this.jsonContents;
-                const patchedYaml = jsonDiff ? patchObject(this.yamlContents, jsonDiff) : this.yamlContents;
-                if (!diff(patchedJson, patchedYaml)) {
+                const jsonDiff = this.maybeOrderedDiff(jsonBackup, this.jsonContents);
+                const yamlDiff = this.maybeOrderedDiff(yamlBackup, this.yamlContents);
+                const patchedJson = yamlDiff ? this.maybeRestoreOrder(patchObject(this.jsonContents, yamlDiff)) : this.jsonContents;
+                const patchedYaml = jsonDiff ? this.maybeRestoreOrder(patchObject(this.yamlContents, jsonDiff)) : this.yamlContents;
+                if (!this.maybeOrderedDiff(patchedJson, patchedYaml)) {
                     log.verbose("sync", "Merge successful, continuing")
                     this.patchYaml(jsonDiff);
                     conflictStrategy = ConflictResolution.useYaml;
@@ -231,10 +250,10 @@ export default class Project {
 
         if (conflictStrategy == ConflictResolution.useJson) {
             log.verbose("sync", "Patching %s with changes from package.json", this.yamlName);
-            this.patchYaml(diff(this.yamlContents, this.jsonContents));
+            this.patchYaml(this.maybeOrderedDiff(this.yamlContents, this.jsonContents));
         } else if (conflictStrategy == ConflictResolution.useYaml) {
             log.verbose("sync", "Patching package.json with changes from %s", this.yamlName);
-            this.patchJson(diff(this.jsonContents, this.yamlContents));
+            this.patchJson(this.maybeOrderedDiff(this.jsonContents, this.yamlContents));
         }
 
         this.writeBackups();

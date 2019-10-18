@@ -20,6 +20,9 @@ export default class Project {
     yamlDocument: yaml.ast.Document;
     readonly yamlContents: object;
     backupPath(filename: string): string;
+    maybeSaveOrder(obj: any): any;
+    maybeRestoreOrder(obj: any): any;
+    maybeOrderedDiff<T, U>(a: T, b: U): Diff<T, U>[] | undefined;
     constructor(projectDir: string);
     writeBackups(): boolean;
     writePackageFiles(): boolean;

@@ -1,50 +1,52 @@
 {
-  "name": "package-yaml",
-  "version": "1.0.0",
-  "description": "Reversible YAML parsing for package.json",
-  "author": "Danielle Church <dani.church@gmail.com>",
-  "license": "MIT",
-  "keywords": [
-    "package.json",
-    "package.yaml",
-    "package.yml",
-    "yaml"
-  ],
-  "main": "index.js",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "prepare": "tsc",
-    "test": "jest"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dmchurch/package-yaml.git"
-  },
-  "bugs": {
-    "url": "https://github.com/dmchurch/package-yaml/issues"
-  },
-  "homepage": "https://github.com/dmchurch/package-yaml#readme",
-  "dependencies": {
-    "deep-diff": "^1.0.2",
-    "npm-autoloader": "^1.0.0",
-    "npmlog": "^4.1.2",
-    "osenv": "^0.1.5",
-    "pkg-dir": "^4.2.0",
-    "reflect-metadata": "^0.1.13",
-    "yaml": "^1.7.0"
-  },
-  "devDependencies": {
-    "@types/deep-diff": "^1.0.0",
-    "@types/jest": "^24.0.19",
-    "@types/node": "^12.7.8",
-    "@types/npmlog": "^4.1.2",
-    "@types/osenv": "^0.1.0",
-    "@types/yaml": "^1.0.2",
-    "coveralls": "^3.0.7",
-    "jest": "^24.9.0",
-    "ts-jest": "^24.1.0",
-    "typescript": "^3.6.3"
-  },
-  "types": "index.d.ts"
+    "name": "package-yaml",
+    "version": "1.0.0",
+    "description": "Reversible YAML parsing for package.json",
+    "author": "Danielle Church <dani.church@gmail.com>",
+    "license": "MIT",
+    "keywords": [
+        "package.json",
+        "package.yaml",
+        "package.yml",
+        "yaml"
+    ],
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc --watch",
+        "prepare": "tsc",
+        "test": "jest"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dmchurch/package-yaml.git"
+    },
+    "bugs": {
+        "url": "https://github.com/dmchurch/package-yaml/issues"
+    },
+    "homepage": "https://github.com/dmchurch/package-yaml#readme",
+    "dependencies": {
+        "deep-diff": "https://github.com/flitbit/diff/archive/e2b5b86.tar.gz",
+        "npm-autoloader": "^1.0.0",
+        "npmlog": "^4.1.2",
+        "osenv": "^0.1.5",
+        "pkg-dir": "^4.2.0",
+        "reflect-metadata": "^0.1.13",
+        "yaml": "^1.7.0"
+    },
+    "devDependencies": {
+        "@types/deep-diff": "^1.0.0",
+        "@types/jest": "^24.0.19",
+        "@types/mock-fs": "^3.6.30",
+        "@types/node": "^12.7.8",
+        "@types/npmlog": "^4.1.2",
+        "@types/osenv": "^0.1.0",
+        "@types/yaml": "^1.0.2",
+        "coveralls": "^3.0.7",
+        "jest": "^24.9.0",
+        "mock-fs": "^4.10.1",
+        "ts-jest": "^24.1.0",
+        "typescript": "^3.6.3"
+    },
+    "types": "index.d.ts"
 }

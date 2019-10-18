@@ -71,6 +71,8 @@ export class Config {
     @property readonly conflicts: ConflictResolution = ConflictResolution.ask;
     @property readonly tryMerge: boolean = true; // Only functions when backups are being written
 
+    @property readonly preserveOrder: boolean = true;
+
     @property readonly defaultExtension: "yaml" | "yml" = "yaml";
 
     _lockedProps: {-readonly [k in keyof Config]?: boolean} = {};
@@ -78,6 +80,8 @@ export class Config {
     constructor(loadConfigFiles:boolean = true) {
         if (!!process.env.DEBUG_PACKAGE_YAML) {
             this.updateAndLock({debug:true})
+        } else {
+            this.update({debug: false});
         }
         if (process.env.PACKAGE_YAML_FORCE) {
             const confl = `use-${process.env.PACKAGE_YAML_FORCE}`;
